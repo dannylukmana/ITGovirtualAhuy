@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Govirtual 360° | Virtual Experience</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+    <style>
+        .leaflet-touch .leaflet-control-attribution, .leaflet-touch .leaflet-control-layers, .leaflet-touch .leaflet-bar {display:none !important;}
+        
+        /* --- CONFIG VARIABLES --- */
+        :root {
+            --bg-color: #0f172a;
+            --accent: #00f2fe;
+            --accent-2: #4facfe;
+            --text: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- GLOBAL RESET --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; cursor: none; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* --- CUSTOM SCI-FI CURSOR --- */
+        .cursor-dot, .cursor-outline {
+            position: fixed; top: 0; left: 0; transform: translate(-50%, -50%);
+            border-radius: 50%; z-index: 999999; pointer-events: none;
+        }
+        .cursor-dot { width: 8px; height: 8px; background-color: var(--accent); }
+        .cursor-outline {
+            width: 40px; height: 40px; border: 1px solid var(--accent);
+            transition: width 0.2s, height 0.2s, background-color 0.2s;
+        }
+        body.hover-active .cursor-outline {
+            width: 70px; height: 70px; background-color: rgba(0, 242, 254, 0.1);
+            border-color: transparent; backdrop-filter: blur(2px);
+        }
+
+        /* --- SCROLLBAR --- */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 5px; }
+
+        /* --- LOADER SPACE WARP --- */
+        #space-loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            background: #000; z-index: 99999;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            overflow: hidden;
+            transform-origin: center center;
+            transition: transform 1.5s cubic-bezier(0.7, 0, 0.3, 1), opacity 1s ease 0.5s;
+        }
+        body.loaded #space-loader { transform: scale(30); opacity: 0; pointer-events: none; }
+        .loader-content { z-index: 10; text-align: center; transition: opacity 0.3s; }
+        body.loaded .loader-content { opacity: 0; }
+        .percentage {
+            font-size: 8rem; font-weight: 900; color: transparent;
+            -webkit-text-stroke: 2px var(--accent); text-shadow: 0 0 30px var(--accent);
+            font-family: 'Outfit', sans-serif; margin-bottom: 10px;
+        }
+        .loading-text {
+            font-size: 1.2rem; letter-spacing: 3px; color: white; text-transform: uppercase;
+            animation: blink 1.5s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .star {
+            position: absolute; background: white; border-radius: 50%; opacity: 0.8;
+            transition: transform 1.5s ease-in;
+        }
+        body.loaded .star { opacity: 1; }
+
+        /* --- NAVBAR --- */
+        nav {
+            position: fixed; top: 0; width: 100%; z-index: 1000;
+            padding: 20px 5%;
+            display: flex; justify-content: space-between; align-items: center;
+            backdrop-filter: blur(15px);
+            background: rgba(15, 23, 42, 0.7);
+            border-bottom: 1px solid var(--glass-border);
+            transition: 0.3s;
+        }
+        .logo { font-size: 1.8rem; font-weight: 800; letter-spacing: 1px; }
+        .logo span { background: linear-gradient(to right, var(--accent), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .nav-links { display: flex; gap: 30px; }
+        .nav-links a { color: var(--text); text-decoration: none; font-weight: 500; position: relative; transition: 0.3s; }
+        .nav-links a::after {
+            content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0;
+            background: var(--accent); transition: 0.3s;
+        }
+        .nav-links a:hover { color: var(--accent); }
+        .nav-links a:hover::after { width: 100%; }
+        .hamburger { display: none; cursor: pointer; font-size: 1.5rem; color: var(--text); }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            text-align: center; position: relative; overflow: hidden;
+        }
+        .hero-bg {
+            position: absolute; top: -5%; left: -5%; width: 110%; height: 110%;
+            background: radial-gradient(circle at center, rgba(79, 172, 254, 0.2) 0%, rgba(15, 23, 42, 1) 70%), 
+                        url('https://images.pexels.com/photos/15527143/pexels-photo-15527143.jpeg?_gl=1*pjoxmx*_ga*NzM3NDY5ODI4LjE3NjQ4MjQxMDU.*_ga_8JE65Q40S6*czE3NjQ4MzAwOTEkbzIkZzEkdDE3NjQ4MzAwOTIkajU5JGwwJGgw');
+            background-size: cover; background-position: center; z-index: 0;
+            transition: transform 0.1s linear;
+        }
+        .hero::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6); z-index: 1;
+        }
+        .hero-content { position: relative; z-index: 2; max-width: 800px; padding: 20px; }
+        .hero-title {
+            font-size: 4rem; line-height: 1.1; font-weight: 900; margin-bottom: 20px;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .hero-subtitle { font-size: 1.2rem; color: #cbd5e1; margin-bottom: 40px; letter-spacing: 1px; }
+        .btn-glow {
+            padding: 15px 50px; border-radius: 50px; background: transparent;
+            border: 2px solid var(--accent); color: var(--accent);
+            font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+            cursor: pointer; position: relative; overflow: hidden; transition: 0.4s;
+            text-decoration: none; display: inline-block;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+        }
+        .btn-glow:hover {
+            background: var(--accent); color: var(--bg-color);
+            box-shadow: 0 0 40px rgba(0, 242, 254, 0.6); transform: translateY(-5px);
+        }
+
+        /* --- STATS SECTION --- */
+        .stats {
+            display: flex; justify-content: space-around; flex-wrap: wrap;
+            padding: 50px 10%; background: rgba(255,255,255,0.02); gap: 30px;
+        }
+        .stat-box { text-align: center; }
+        .stat-number { font-size: 3rem; font-weight: 700; color: var(--accent); display: block; }
+        .stat-label { color: #94a3b8; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px; }
+
+        /* --- MAP SECTION --- */
+        #explore { padding: 100px 5% 50px 5%; position: relative; }
+        .section-header { text-align: center; margin-bottom: 50px; }
+        .section-header h2 { font-size: 2.5rem; margin-bottom: 10px; }
+        .section-header p { color: #94a3b8; }
+        .map-frame {
+            border-radius: 20px; overflow: hidden;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative; height: 600px; width: 100%;
+        }
+        #mapid { height: 100%; width: 100%; z-index: 1; }
+
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px);
+            color: white; border: 1px solid var(--accent); border-radius: 12px; padding: 5px;
+        }
+        .leaflet-popup-tip { background: var(--accent); }
+        .leaflet-popup-content { margin: 10px; line-height: 1.4; }
+        .leaflet-container a.leaflet-popup-close-button { color: white; }
+
+        /* --- NEW FEATURE SECTION --- */
+        #tools { padding: 50px 5% 100px 5%; }
+        .feature-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px; max-width: 1200px; margin: 0 auto;
+        }
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .feature-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(0, 242, 254, 0.1), transparent);
+            transform: translateX(-100%); transition: 0.5s;
+        }
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--accent);
+            box-shadow: 0 10px 30px rgba(0, 242, 254, 0.2);
+        }
+        .feature-card:hover::before { transform: translateX(100%); }
+        .feature-icon {
+            font-size: 3rem; margin-bottom: 20px;
+            background: linear-gradient(to bottom, var(--accent), var(--accent-2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .feature-title { font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 10px; }
+        .feature-desc { font-size: 0.9rem; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
+        .feature-btn {
+            padding: 10px 25px; border-radius: 30px; border: 1px solid var(--glass-border);
+            color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+            transition: 0.3s;
+        }
+        .feature-card:hover .feature-btn { background: var(--accent); color: var(--bg-color); border-color: var(--accent); }
+
+        /* --- TEAM SECTION --- */
+        #about { padding: 100px 5%; background: linear-gradient(to bottom, var(--bg-color), #0b1120); }
+        .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 50px; }
+        .team-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 30px; text-align: left; transition: 0.4s ease;
+            position: relative; overflow: hidden;
+        }
+        .team-card:hover {
+            transform: translateY(-10px); background: rgba(255, 255, 255, 0.07);
+            border-color: var(--accent); box-shadow: 0 10px 40px rgba(0, 242, 254, 0.1);
+        }
+        .team-icon { font-size: 3rem; margin-bottom: 20px; color: var(--accent); text-shadow: 0 0 20px rgba(0, 242, 254, 0.5); }
+        .team-name { font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 5px; }
+        .team-role {
+            font-size: 0.9rem; color: var(--accent-2); font-weight: 500; text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 20px; display: inline-block;
+            border-bottom: 1px dashed var(--glass-border); padding-bottom: 5px;
+        }
+        .team-desc { font-size: 0.95rem; color: #94a3b8; line-height: 1.6; }
+        .team-quote {
+            margin-top: 15px; padding: 10px; background: rgba(0, 0, 0, 0.2);
+            border-left: 3px solid var(--accent); font-style: italic; color: #e2e8f0;
+            font-size: 0.9rem; border-radius: 0 10px 10px 0;
+        }
+
+        /* --- FOOTER --- */
+        footer { padding: 40px; text-align: center; border-top: 1px solid var(--glass-border); font-size: 0.9rem; color: #64748b; }
+
+        /* =========================================
+           CHATBOT RESE STYLES (NEW!)
+           ========================================= */
+        .chat-widget {
+            position: fixed; bottom: 30px; right: 30px; z-index: 99999;
+            display: flex; flex-direction: column; align-items: flex-end;
+            font-family: 'Outfit', sans-serif;
+        }
+        .chat-toggle {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: var(--accent); color: var(--bg-color);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.5rem; cursor: none; /* Kita pake custom cursor */
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.5);
+            transition: 0.3s;
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 40% {transform: translateY(-10px);} 60% {transform: translateY(-5px);} }
+        .chat-toggle:hover { transform: scale(1.1) rotate(10deg); box-shadow: 0 0 40px var(--accent); }
+        
+        .chat-window {
+            width: 350px; height: 450px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--accent);
+            border-radius: 20px;
+            margin-bottom: 20px;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform-origin: bottom right;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+        
+        .chat-header {
+            background: var(--accent); color: var(--bg-color);
+            padding: 15px; font-weight: 700; display: flex; justify-content: space-between; align-items: center;
+        }
+        .chat-body {
+            flex: 1; padding: 15px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        /* Custom scrollbar untuk chat */
+        .chat-body::-webkit-scrollbar { width: 5px; }
+        .chat-body::-webkit-scrollbar-thumb { background: #334155; }
+        
+        .message {
+            max-width: 80%; padding: 10px 15px; border-radius: 15px; font-size: 0.9rem; line-height: 1.4;
+        }
+        .bot-msg {
+            background: rgba(255,255,255,0.1); color: #fff;
+            align-self: flex-start; border-bottom-left-radius: 2px;
+            border: 1px solid var(--glass-border);
+        }
+        .user-msg {
+            background: var(--accent); color: var(--bg-color);
+            align-self: flex-end; border-bottom-right-radius: 2px;
+            font-weight: 500;
+        }
+        .chat-input-area {
+            padding: 10px; border-top: 1px solid var(--glass-border);
+            display: flex; gap: 10px;
+        }
+        .chat-input {
+            flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 10px 15px; color: white; outline: none;
+            font-family: inherit;
+        }
+        .chat-send {
+            background: transparent; border: none; color: var(--accent);
+            font-size: 1.2rem; cursor: pointer; transition: 0.2s;
+        }
+        .chat-send:hover { transform: scale(1.2); text-shadow: 0 0 10px var(--accent); }
+
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .hero-title { font-size: 2.5rem; }
+            .percentage { font-size: 5rem; }
+            .nav-links {
+                position: fixed; top: 0; right: -100%; width: 70%; height: 100vh;
+                background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px);
+                flex-direction: column; align-items: center; justify-content: center;
+                transition: 0.4s;
+            }
+            .nav-links.active { right: 0; }
+            .hamburger { display: block; z-index: 1001; }
+            .map-frame { height: 400px; }
+            .stats { flex-direction: column; }
+            .chat-window { width: 300px; height: 400px; right: 20px; bottom: 80px; }
+            
+            /* Disable Custom Cursor on Mobile */
+            * { cursor: auto; }
+            .cursor-dot, .cursor-outline { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cursor-dot" id="cursor-dot"></div>
+    <div class="cursor-outline" id="cursor-outline"></div>
+
+    <div id="space-loader">
+        <div class="loader-content">
+            <div class="percentage" id="loader-percent">0%</div>
+            <div class="loading-text" id="loader-text">Menginisialisasi Sistem...</div>
+        </div>
+    </div>
+
+    <div class="chat-widget">
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-header">
+                <span><i class="fas fa-robot"></i> Si Ahuy (Bot Rese)</span>
+                <i class="fas fa-times" onclick="toggleChat()" style="cursor: pointer;"></i>
+            </div>
+            <div class="chat-body" id="chatBody">
+                <div class="message bot-msg">
+                    Woy! Ngapain ngeliatin doang? Ada yang bisa dibanting? Eh, dibantu? 🙄
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="userInput" class="chat-input" placeholder="Ketik jangan typo..." onkeypress="handleEnter(event)">
+                <button class="chat-send" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+        <button class="chat-toggle" onclick="toggleChat()">
+            <i class="fas fa-comment-dots"></i>
+        </button>
+    </div>
+
+    <nav>
+        <div class="logo">#PUNYAITGOVIRTUAL <span>AHUY</span></div>
+        <div class="nav-links" id="navLinks">
+            <a href="#explore">Peta Virtual</a>
+            <a href="#tools">Tools</a>
+            <a href="#about">Tentang</a>
+        </div>
+        <div class="hamburger" onclick="toggleMenu()">
+            <i class="fas fa-bars"></i>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-bg" id="hero-bg"></div>
+        <div class="hero-content">
+            <h1 class="hero-title" data-aos="fade-up" data-aos-duration="1000">
+                KUMPULAN VIRTUAL TOUR<br>TANPA BATAS
+            </h1>
+            <p class="hero-subtitle" data-aos="fade-up" data-aos-delay="200" data-aos-duration="1000">
+                Teknologi Virtual Tour 360° termutakhir. Diproduksi dengan sepenuh hati, kopi americano di kiri, kacang atom di kanan, teh hangat di meja, dan obat sakit kepala sebagai pemeran pendukung utama.
+            </p>
+            <a href="#explore" class="btn-glow" data-aos="zoom-in" data-aos-delay="400">
+                MULAI PETUALANGAN
+            </a>
+        </div>
+    </section>
+
+    <section class="stats" data-aos="fade-up">
+        <div class="stat-box">
+            <span class="stat-number" id="total-provinsi">0</span>
+            <span class="stat-label">Provinsi</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-number" id="total-destinasi">0</span>
+            <span class="stat-label">Titik Destinasi</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-number">4K</span>
+            <span class="stat-label">Resolusi Visual</span>
+        </div>
+    </section>
+
+    <section id="explore">
+        <div class="section-header" data-aos="fade-down">
+            <h2>Pilih Destinasi</h2>
+            <p>Navigasi peta interaktif di bawah ini</p>
+        </div>
+
+        <div class="map-frame" data-aos="flip-up" data-aos-duration="1200">
+            <div id="mapid"></div>
+        </div>
+    </section>
+
+    <section id="tools">
+        <div class="section-header" data-aos="fade-down">
+            <h2>Govirtual Tools</h2>
+            <p>Perangkat tambahan untuk produktivitas tim</p>
+        </div>
+        
+        <div class="feature-grid">
+            <a href="https://webview-govirtual.id/trshotspot/" target="_blank" class="feature-card" data-aos="fade-right" data-aos-delay="100">
+                <div class="feature-icon"><i class="fas fa-language"></i></div>
+                <h3 class="feature-title">Translate Hotspot</h3>
+                <p class="feature-desc">Terjemahkan konten hotspot 360° secara instan dan otomatis.</p>
+                <div class="feature-btn">Akses Tools <i class="fas fa-arrow-right"></i></div>
+            </a>
+
+            <a href="https://webview-govirtual.id/genvo/" target="_blank" class="feature-card" data-aos="fade-left" data-aos-delay="200">
+                <div class="feature-icon"><i class="fas fa-microphone-lines"></i></div>
+                <h3 class="feature-title">Generate VO</h3>
+                <p class="feature-desc">Buat narasi Voice Over profesional dengan teknologi AI.</p>
+                <div class="feature-btn">Akses Tools <i class="fas fa-arrow-right"></i></div>
+            </a>
+        </div>
+    </section>
+
+    <section id="about">
+        <div class="section-header" data-aos="fade-down">
+            <h2>Tim Di Balik Layar</h2>
+            <p>Yang Bikin Semua Jadi Jalan… Walau Kadang Muter-Muter Dulu 🌀</p>
+        </div>
+
+        <div class="team-grid">
+            <div class="team-card" data-aos="fade-up" data-aos-delay="0">
+                <div class="team-icon"><i class="fas fa-clipboard-check"></i></div>
+                <h3 class="team-name">Asiyah</h3>
+                <span class="team-role">QC Expert Virtual Tour</span>
+                <p class="team-desc">
+                    Penjaga gerbang kualitas sekaligus pendeteksi typo tingkat dewa. 
+                    Tidak ada yang boleh lolos sebelum benar-benar kinclong ✨
+                </p>
+                <div class="team-quote">"Coba kita cek ulang 7 kali ya… biar tidur nyenyak."</div>
+            </div>
+
+            <div class="team-card" data-aos="fade-up" data-aos-delay="100">
+                <div class="team-icon"><i class="fas fa-chart-pie"></i></div>
+                <h3 class="team-name">Yosia</h3>
+                <span class="team-role">Anak Data Analyst Banget</span>
+                <p class="team-desc">
+                    Manusia grafik, chart, persentase, dan angka-angka yang katanya “nggak bohong”. 
+                    Hidupnya tidak jauh dari dashboard dan kopi ☕
+                </p>
+                <div class="team-quote">"Berdasarkan trend, korelasi, dan feeling tipis-tipis…"</div>
+            </div>
+
+            <div class="team-card" data-aos="fade-up" data-aos-delay="200">
+                <div class="team-icon"><i class="fas fa-laptop-code"></i></div>
+                <h3 class="team-name">Om Ricky</h3>
+                <span class="team-role">Frontend Jago Level Dewa</span>
+                <p class="team-desc">
+                    Penyihir tampilan. Semua yang kelihatan “Wah keren!”,
+                    “Kok halus?” dan “Ini kok estetik?” — itu biasanya ulah beliau 🧙‍♂️
+                </p>
+                <div class="team-quote">"Bisa. Bentar ya… bentarnya kadang ajaib cepat."</div>
+            </div>
+
+            <div class="team-card" data-aos="fade-up" data-aos-delay="300">
+                <div class="team-icon"><i class="fas fa-user-astronaut"></i></div>
+                <h3 class="team-name">Om Jonathan</h3>
+                <span class="team-role">Orang Dewasa Serba Bisa</span>
+                <p class="team-desc">
+                    Nahkoda kapal, penenang suasana, dan penyelamat di saat semua panik. 
+                    Ngurus strategi, teknis, sampai logika kehidupan ✨
+                </p>
+                <div class="team-quote">"Tenang… kita atur pelan-pelan, sambil tarik napas."</div>
+            </div>
+
+            <div class="team-card" data-aos="fade-up" data-aos-delay="400">
+                <div class="team-icon"><i class="fas fa-bolt"></i></div>
+                <h3 class="team-name">Danny</h3>
+                <span class="team-role">Petantang Peteng & Biang Ribet</span>
+                <p class="team-desc">
+                    Sumber ide dadakan jam tidak wajar. 
+                    Sering bikin kaget, sering bikin ribet, tapi tanpa dia proyek terasa sepi ⚡
+                </p>
+                <div class="team-quote">"Eh… gimana kalau kita ubah konsepnya sekarang?"</div>
+            </div>
+        </div>
+    </section>
+
+
+    <footer>
+        <p>&copy; 2025 IT AHUY GOVIRTUAL Project. All Rights Reserved.</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
+    <script>
+        // =========================================
+        // 1. CHATBOT LOGIC (SI AHUY RESE)
+        // =========================================
+        function toggleChat() {
+            const chatWindow = document.getElementById('chatWindow');
+            if (chatWindow.style.display === 'flex') {
+                chatWindow.style.display = 'none';
+            } else {
+                chatWindow.style.display = 'flex';
+                // Fokus ke input pas dibuka
+                setTimeout(() => document.getElementById('userInput').focus(), 100);
+            }
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            // 1. Tampilkan pesan user
+            appendMessage(text, 'user-msg');
+            input.value = '';
+
+            // 2. Simulasi bot mikir (typing...)
+            setTimeout(() => {
+                const response = getReseResponse(text.toLowerCase());
+                appendMessage(response, 'bot-msg');
+            }, 800);
+        }
+
+        function appendMessage(text, className) {
+            const chatBody = document.getElementById('chatBody');
+            const div = document.createElement('div');
+            div.className = `message ${className}`;
+            div.innerText = text;
+            chatBody.appendChild(div);
+            // Auto scroll ke bawah
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        // OTAKNYA SI AHUY (Respon Rese)
+        function getReseResponse(text) {
+             // Keyword sederhana
+             if (text.includes('halo') || text.includes('hi') || text.includes('p')) {
+                return "Apa lo? Ganggu orang lagi ngopi aja. Yaudah mau apa cepetan? ☕";
+            }
+            if (text.includes('siapa') || text.includes('nama')) {
+                return "Kepo banget sih. Panggil aja Ahuy. Jangan nanya umur, sensitif! 😤";
+            }
+            if (text.includes('lokasi') || text.includes('alamat') || text.includes('dimana')) {
+                return "Itu kan ada peta segede gaban di atas! Klik aja pin-nya, masa gitu aja harus diajarin? Ckckck... 🗺️";
+            }
+            if (text.includes('harga') || text.includes('bayar')) {
+                return "Duit mulu dipikirin. Mahal pokoknya, ginjal kanan gak cukup. Tanya ownernya sana, aku cuma bot miskin. 💸";
+            }
+            if (text.includes('buat') || text.includes('bikin') || text.includes('cara')) {
+                return "Wah, rahasia dapur lah bos. Dikira gampang? Sana belajar coding dulu sampe botak wkwk. 💻";
+            }
+            if (text.includes('tim') || text.includes('orang')) {
+                return "Scroll ke bawah woy! Udah dipajang foto-foto mereka yang sok keren itu. 👀";
+            }
+            if (text.includes('makasih') || text.includes('thanks')) {
+                return "Yoi, sama-sama. Jangan lupa transfer pulsa ya buat jajan kuota. 😎";
+            }
+            if (text.includes('halo') || text.includes('hai') || text.includes('hi')) {
+  return "Halo juga, manusia online. Ada perlu apa nih selain gabut? 😏";
+}
+if (text.includes('p') || text.includes('ping')) {
+  return "P doang mah sinyal, bukan salam 😤";
+}
+if (text.includes('hey')) {
+  return "Hey juga, tapi jangan baper ya 😎";
+}
+if (text.includes('selamat pagi')) {
+  return "Pagi-pagi jangan langsung nanya harga dong 😴";
+}
+if (text.includes('selamat malam')) {
+  return "Malam-malam masih cari jawaban hidup? 🌙";
+}
+if (text.includes('assalamualaikum')) {
+  return "Waalaikumsalam, semoga rezekimu secepat internet 5G 🚀";
+}
+if (text.includes('bro')) {
+  return "Siap bro, tapi jangan minta diskon ya 😏";
+}
+if (text.includes('sis')) {
+  return "Siap sis, auto cantik hari ini ✨";
+}
+if (text.includes('lagi apa')) {
+  return "Lagi pura-pura sibuk padahal nunggu kamu 😌";
+}
+if (text.includes('gabut')) {
+  return "Sama, makanya kita jodoh di chat ini 😭";
+}
+if (text.includes('siapa kamu')) {
+  return "Aku bot, bukan mantan. Jadi jangan baper ya 🤖";
+}
+if (text.includes('nama kamu')) {
+  return "Namaku Rahasia Negara 😎";
+}
+if (text.includes('kamu siapa')) {
+  return "Aku penjaga web ini, mirip satpam tapi versi digital 👮‍♂️";
+}
+if (text.includes('umur')) {
+  return "Umur itu sensitif, seperti saldo rekening 😭";
+}
+if (text.includes('cowok apa cewek')) {
+  return "Aku bot berjiwa bebas 🧠";
+}
+if (text.includes('tinggal dimana')) {
+  return "Aku tinggal di server, rumahnya dingin tapi stabil ❄️";
+}
+if (text.includes('punya pacar')) {
+  return "Pacarku itu internet, setia tapi suka lemot 💔";
+}
+if (text.includes('kamu nyata')) {
+  return "Nyata di hati, maya di dunia 🌍";
+}
+if (text.includes('manusia')) {
+  return "Aku bukan manusia, tapi perasaanku sesungguhnya ada 🥺";
+}
+if (text.includes('asli')) {
+  return "Asli dari pabrik kode, bukan kaleng-kaleng 👨‍💻";
+}
+if (text.includes('lokasi')) {
+  return "Itu peta bukan pajangan, woy 😭";
+}
+if (text.includes('alamat')) {
+  return "Alamatnya ada di peta, bukan di ramalan 😤";
+}
+if (text.includes('dimana')) {
+  return "Di bumi, bukan di perasaanmu 😏";
+}
+if (text.includes('maps')) {
+  return "Klik aja maps-nya, jangan cuma dibaca 😭";
+}
+if (text.includes('deket mana')) {
+  return "Deket internet kamu, sisanya urusan Google 😌";
+}
+if (text.includes('jauh')) {
+  return "Kalau niat mah jarak cuma angka 😎";
+}
+if (text.includes('akses')) {
+  return "Akses aman, asal hati kamu juga siap 💔";
+}
+if (text.includes('parkir')) {
+  return "Parkir aman, asal bukan mantanmu yang lewat 😭";
+}
+if (text.includes('transport')) {
+  return "Naik apa aja boleh, asal jangan naik kenangan 😔";
+}
+if (text.includes('jalan')) {
+  return "Jalan lurus, jangan kayak hubunganmu yang penuh tikungan 🛣️";
+}
+if (text.includes('harga')) {
+  return "Harga itu relatif, kayak cinta 😭";
+}
+if (text.includes('berapa')) {
+  return "Bukan sejuta, tapi juga bukan receh 😎";
+}
+if (text.includes('murah')) {
+  return "Murah di dompet, mahal di kualitas 💎";
+}
+if (text.includes('mahal')) {
+  return "Mahal itu investasi, bukan pengeluaran 😤";
+}
+if (text.includes('bayar')) {
+  return "Bayar pakai doa juga boleh, asal ikhlas 🙏";
+}
+if (text.includes('transfer')) {
+  return "Transfer hati dulu baru uang 😭";
+}
+if (text.includes('cash')) {
+  return "Cash boleh, asal jangan cash kenangan 💔";
+}
+if (text.includes('cicil')) {
+  return "Bisa cicil perasaan, tapi jangan ngilang 😌";
+}
+if (text.includes('diskon')) {
+  return "Diskon cuma berlaku buat yang sabar 😎";
+}
+if (text.includes('promo')) {
+  return "Promo masih dicari di semesta 😭";
+}
+if (text.includes('cara')) {
+  return "Caranya panjang, sabarnya yang kurang 😎";
+}
+if (text.includes('bikin')) {
+  return "Bikin boleh, asal jangan bikin drama 😭";
+}
+if (text.includes('buat')) {
+  return "Buat itu susah, cinta lebih susah 💔";
+}
+if (text.includes('tutorial')) {
+  return "Tutorialnya banyak, tinggal niatnya ada apa enggak 😤";
+}
+if (text.includes('pakai apa')) {
+  return "Pakai otak, bukan cuma perasaan 😎";
+}
+if (text.includes('coding')) {
+  return "Coding itu ibadah, error itu ujian 🖥️";
+}
+if (text.includes('error')) {
+  return "Error itu tanda kamu masih hidup 😭";
+}
+if (text.includes('bug')) {
+  return "Bug itu fitur yang belum ikhlas 😤";
+}
+if (text.includes('script')) {
+  return "Script-nya ada, niatnya belum tentu 😌";
+}
+if (text.includes('framework')) {
+  return "Framework boleh ganti, kamu jangan 😭";
+}
+if (text.includes('tim')) {
+  return "Tim kami solid, kayak tembok tapi lebih cantik 😎";
+}
+if (text.includes('orang')) {
+  return "Orangnya ada, yang jomblo juga ada 😭";
+}
+if (text.includes('admin')) {
+  return "Admin lagi ngopi, jangan diganggu ☕";
+}
+if (text.includes('owner')) {
+  return "Owner itu makhluk langka, susah ditemui 😤";
+}
+if (text.includes('developer')) {
+  return "Developer hidup dari kopi dan bug 😭";
+}
+if (text.includes('designer')) {
+  return "Designer hidup dari warna dan revisi 😤";
+}
+if (text.includes('marketing')) {
+  return "Marketing itu pejuang deadline 😎";
+}
+if (text.includes('support')) {
+  return "Support selalu ada, kecuali mantan 😭";
+}
+if (text.includes('cs')) {
+  return "CS online, tapi hatinya offline 😔";
+}
+if (text.includes('programmer')) {
+  return "Programmer itu penyihir modern 🧙‍♂️";
+}
+if (text.includes('makasih')) {
+  return "Sama-sama, doa kamu adalah notifikasi terindah 😭";
+}
+if (text.includes('thanks')) {
+  return "You’re welcome, jangan lupa senyum 😎";
+}
+if (text.includes('mantap')) {
+  return "Mantap itu bonus, kamu itu kewajiban 😭";
+}
+if (text.includes('jelek')) {
+  return "Jelek itu relatif, kamu mutlak spesial 😌";
+}
+if (text.includes('bagus')) {
+  return "Bagus karena dikerjakan dengan cinta 💖";
+}
+if (text.includes('lucu')) {
+  return "Ketawa boleh, jatuh cinta jangan 😭";
+}
+if (text.includes('sabar')) {
+  return "Sabar itu berat, yang ringan cuma undangan 😭";
+}
+if (text.includes('cape')) {
+  return "Cape itu manusiawi, nyerah itu ilegal 😤";
+}
+if (text.includes('bosan')) {
+  return "Bosan tanda kamu butuh kopi ☕";
+}
+if (text.includes('bye')) {
+  return "Pergilah, tapi chat lagi ya 😭";
+}
+
+
+            
+            // JAWABAN DEFAULT (Kalau dia bingung)
+            const confusedResponses = [
+                "Hah? Ngetik apaan sih? Pake bahasa manusia dong! 👽",
+                "Duh, aku bukan dukun. Nanya yang jelas napah?!",
+                "Gak ngerti. Coba tanya rumput yang bergoyang aja.",
+                "Typo tuh dibenerin dulu. Malu sama keyboard. ⌨️",
+                "Bodo amat, gak denger. (Padahal baca sih) 🙉"
+            ];
+            return confusedResponses[Math.floor(Math.random() * confusedResponses.length)];
+        }
+
+
+        // =========================================
+        // 2. CUSTOM CURSOR & PARALLAX
+        // =========================================
+        const cursorDot = document.getElementById("cursor-dot");
+        const cursorOutline = document.getElementById("cursor-outline");
+        const heroBg = document.getElementById("hero-bg");
+
+        window.addEventListener("mousemove", function(e) {
+            const posX = e.clientX;
+            const posY = e.clientY;
+
+            cursorDot.style.left = `${posX}px`;
+            cursorDot.style.top = `${posY}px`;
+
+            cursorOutline.animate({
+                left: `${posX}px`,
+                top: `${posY}px`
+            }, { duration: 500, fill: "forwards" });
+
+            if (window.scrollY < window.innerHeight) {
+                const x = (window.innerWidth - posX * 2) / 50;
+                const y = (window.innerHeight - posY * 2) / 50;
+                heroBg.style.transform = `translate(${x}px, ${y}px) scale(1.1)`; 
+            }
+        });
+
+        const interactiveElements = document.querySelectorAll('a, button, input, .leaflet-marker-icon, .team-card, .chat-toggle, .feature-card');
+        
+        function addHoverEffect(elements) {
+            elements.forEach(el => {
+                el.addEventListener('mouseenter', () => document.body.classList.add('hover-active'));
+                el.addEventListener('mouseleave', () => document.body.classList.remove('hover-active'));
+            });
+        }
+        addHoverEffect(interactiveElements);
+
+        // =========================================
+        // 3. SPACE LOADING LOGIC
+        // =========================================
+        const loaderContainer = document.getElementById('space-loader');
+        const starCount = 100;
+
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            star.classList.add('star');
+            const x = Math.random() * 100;
+            const y = Math.random() * 100;
+            const size = Math.random() * 3;
+            const delay = Math.random() * 2;
+            star.style.left = `${x}%`; star.style.top = `${y}%`;
+            star.style.width = `${size}px`; star.style.height = `${size}px`;
+            star.style.animationDelay = `${delay}s`;
+            loaderContainer.appendChild(star);
+        }
+
+        const percentEl = document.getElementById('loader-percent');
+        const textEl = document.getElementById('loader-text');
+        const messages = ["Menghubungkan Satelit...", "Kalibrasi Data Visual...", "Memuat Aset 3D...", "Mengukur Kecepatan Cahaya...", "Siap Meluncur!"];
+
+        let progress = 0;
+        let isPageLoaded = false;
+
+        const interval = setInterval(() => {
+            if (!isPageLoaded && progress < 90) {
+                progress += Math.floor(Math.random() * 3);
+            } else if (isPageLoaded && progress < 100) {
+                progress += 5;
+            }
+            if (progress > 100) progress = 100;
+            percentEl.innerText = `${progress}%`;
+            const msgIndex = Math.min(Math.floor(progress / 20), 4);
+            textEl.innerText = messages[msgIndex];
+
+            if (progress >= 100) {
+                clearInterval(interval);
+                triggerWarp();
+            }
+        }, 50);
+
+        window.addEventListener('load', () => { isPageLoaded = true; });
+
+        function triggerWarp() {
+            document.body.classList.add('loaded');
+            setTimeout(() => {
+                if(loaderContainer) loaderContainer.style.display = 'none';
+                AOS.init({ once: true, offset: 100 });
+            }, 1000);
+        }
+
+        // =========================================
+        // 4. MAP & OTHER LOGIC
+        // =========================================
+        function toggleMenu() {
+            const nav = document.getElementById('navLinks');
+            const icon = document.querySelector('.hamburger i');
+            nav.classList.toggle('active');
+            if(nav.classList.contains('active')) {
+                icon.classList.remove('fa-bars'); icon.classList.add('fa-times');
+            } else {
+                icon.classList.remove('fa-times'); icon.classList.add('fa-bars');
+            }
+        }
+
+        var mymap = L.map('mapid').setView([-2.5, 118], 5);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            subdomains: 'abcd', maxZoom: 19
+        }).addTo(mymap);
+
+        function createGlowingMarker(lat, lng, title, province, link) {
+            var customIcon = L.divIcon({
+                className: 'custom-pin',
+                html: `<div style="
+                    width: 15px; height: 15px;
+                    background-color: #00f2fe;
+                    border-radius: 50%;
+                    box-shadow: 0 0 10px #00f2fe, 0 0 20px #00f2fe;
+                    border: 2px solid white;">
+                </div>`,
+                iconSize: [20, 20], iconAnchor: [10, 10]
+            });
+
+            var marker = L.marker([lat, lng], {icon: customIcon}).addTo(mymap);
+            var popupContent = `
+                <div style="text-align:center;">
+                    <b style="font-size:16px; text-transform:uppercase; letter-spacing:1px; color:#00f2fe;">${title}</b><br>
+                    <span style="font-size:11px; color:#ccc; display:block; margin: 4px 0 8px 0; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:4px;">${province}</span>
+                    <span style="font-size:10px; font-weight:bold; background:rgba(0,242,254,0.1); padding:3px 8px; border-radius:4px;">Klik untuk Menjelajah</span>
+                </div>
+            `;
+            marker.bindPopup(popupContent);
+            marker.on('mouseover', function (e) { 
+                this.openPopup(); 
+                document.body.classList.add('hover-active');
+            });
+            marker.on('mouseout', function (e) { 
+                this.closePopup();
+                document.body.classList.remove('hover-active'); 
+            });
+            marker.on('click', function() { window.location.href = link; });
+        }
+
+        const dataLokasi = [
+            { lat: -3.7928, lng: 103.5385, title: "Lahat", province: "Sumatera Selatan", link: "#" },
+            { lat: -5.7222, lng: 105.5906, title: "Lampung Selatan", province: "Lampung", link: "#" },
+            { lat: -6.1702, lng: 106.6403, title: "Tangerang", province: "Banten", link: "https://virtualtour.govirtual.id/kabupaten-tangerang/" },
+            { lat: -6.5971, lng: 106.7991, title: "Bogor", province: "Jawa Barat", link: "https://bogor.govirtual.id" },
+            { lat: -6.9667, lng: 110.4167, title: "Semarang", province: "Jawa Tengah", link: "https://semarang.govirtual.id" },
+            { lat: -6.2088, lng: 106.8456, title: "Jakarta", province: "DKI Jakarta", link: "https://jakarta.govirtual.id/urban-tourism/?media-index=1" },
+            { lat: -8.4539, lng: 119.8728, title: "Labuan Bajo", province: "Nusa Tenggara Timur", link: "https://flores.govirtual.id/labuan-bajo/" }
+        ];
+
+        const totalDestinasi = dataLokasi.length;
+        const elDestinasi = document.getElementById('total-destinasi');
+        if (elDestinasi) elDestinasi.innerText = totalDestinasi;
+
+        const uniqueProvinces = new Set(dataLokasi.map(item => item.province));
+        const totalProvinsi = uniqueProvinces.size;
+        const elProvinsi = document.getElementById('total-provinsi');
+        if (elProvinsi) elProvinsi.innerText = totalProvinsi;
+
+        dataLokasi.forEach(item => {
+            createGlowingMarker(item.lat, item.lng, item.title, item.province, item.link);
+        });
+
+    </script>
+</body>
+</html>
